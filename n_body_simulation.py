@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 from integrators import *
 from simulation_utilities import *
 from barnes_hut_algo import octant_node
+import matplotlib.patches as mpatches
 ### Package Imports ###
 
 ##########################
@@ -34,6 +35,18 @@ from barnes_hut_algo import octant_node
 pos_agg, KE_agg, PE_agg = run_simulation(N=50, T=20, dt=0.01, softening=0.1, G=1, integrator=leap_frog_integrator, use_BH=False, random_state=111)
 time_axis = np.arange(len(KE_agg))*0.01;plot_simulation_energy(time_axis,KE_agg,PE_agg)
 generate_simulation_video(pos_agg, 20, 2, ['blue'], show_tails=True, file_type="mp4", output_filename="particle_sim_n50")
+
+# Using leap frog integration
+pos_agg, KE_agg, PE_agg = run_simulation(N=50, T=10, dt=0.01, softening=0.1, G=1, integrator=leap_frog_integrator, use_BH=False, random_state=111)
+time_axis = np.arange(len(KE_agg))*0.01;plot_simulation_energy(time_axis,KE_agg,PE_agg)
+generate_simulation_video(pos_agg, 10, 2, ['red'], show_tails=True, file_type="mp4", output_filename="leapfrog_integration")
+
+# Using Verlet integration
+pos_agg, KE_agg, PE_agg = run_simulation(N=50, T=10, dt=0.01, softening=0.1, G=1, integrator=verlet_integrator, use_BH=False, random_state=111)
+time_axis = np.arange(len(KE_agg))*0.01;plot_simulation_energy(time_axis,KE_agg,PE_agg)
+generate_simulation_video(pos_agg, 10, 2, ['red'], show_tails=True, file_type="mp4", output_filename="verlet_integration")
+
+
 
 ###                      ###
 ### 2-cluster simulation ###
@@ -123,6 +136,13 @@ pos_agg_er, KE_agg_er, PE_agg_er = run_simulation(N=3, T=10, dt=0.01, softening=
                                                              "vel":np.array([[0,0,0],[0,v0,0],[0,-v0,0]]).astype(np.float16)},
                                          integrator=euler_richardson_integrator, use_BH=False, random_state=111)
 
+# Verlet
+pos_agg_v, KE_agg_v, PE_agg_v = run_simulation(N=3, T=10, dt=0.01, softening=0.1, G=1, normalize_momentum=False,
+                                         initial_conditions={"mass":np.array([50,20,20]).astype(np.float16).reshape(3,1),
+                                                             "pos":np.array([[0,0,0],[-2,0,0],[2,0,0]]).astype(np.float16),
+                                                             "vel":np.array([[0,0,0],[0,v0,0],[0,-v0,0]]).astype(np.float16)},
+                                         integrator=verlet_integrator, use_BH=False, random_state=111)
+
 # Runge-Kutta 4
 pos_agg_rk4, KE_agg_rk4, PE_agg_rk4 = run_simulation(N=3, T=10, dt=0.01, softening=0.1, G=1, normalize_momentum=False,
                                          initial_conditions={"mass":np.array([50,20,20]).astype(np.float16).reshape(3,1),
@@ -155,6 +175,12 @@ green_patch = mpatches.Patch(color='green', label='Euler-Richardson');blue_patch
 generate_simulation_video(pos_agg, 10, 3, ['red','green','green','red','blue','blue'],show_tails=True, figsize=(10,10), xlim = (-5,5),
                           ylim=(-5,5), zlim=(-5,5), s=np.array([150*5,150,150,150*5,150,150]), file_type="mp4",
                           output_filename="Euler_Richardson_vs_Leap_Frog_Method",legend=[green_patch,blue_patch])
+
+pos_agg = np.concatenate([pos_agg_v,pos_agg_lf],axis=0)
+green_patch = mpatches.Patch(color='green', label='Verlet');blue_patch = mpatches.Patch(color='blue', label='Leap Frog')
+generate_simulation_video(pos_agg, 10, 3, ['red','green','green','red','blue','blue'],show_tails=True, figsize=(10,10), xlim = (-5,5),
+                          ylim=(-5,5), zlim=(-5,5), s=np.array([150*5,150,150,150*5,150,150]), file_type="mp4",
+                          output_filename="Verlet_vs_Leap_Frog_Method",legend=[green_patch,blue_patch])
 
 pos_agg = np.concatenate([pos_agg_rk4,pos_agg_lf],axis=0)
 green_patch = mpatches.Patch(color='green', label='RK4');blue_patch = mpatches.Patch(color='blue', label='Leap Frog')

@@ -9,7 +9,7 @@ import numpy as np
 def leap_frog_integrator(mass, pos, vel, dt, G, softening, acc_calc):
     """
     Updates the position array (pos) for each particle and the velocity array (vel) for each particle
-    using the leap-frog integrator method
+    using the leap-frog integrator method, a second order method
 
     Parameters
     ----------
@@ -46,7 +46,7 @@ def leap_frog_integrator(mass, pos, vel, dt, G, softening, acc_calc):
 def euler_integrator(mass, pos, vel, dt, G, softening, acc_calc):
     """
     Updates the position array (pos) for each particle and the velocity array (vel) for each particle
-    using the Euler integration method
+    using the Euler integration method, a first order method
 
     Parameters
     ----------
@@ -76,7 +76,7 @@ def euler_integrator(mass, pos, vel, dt, G, softening, acc_calc):
 def euler_cromer_integrator(mass, pos, vel, dt, G, softening, acc_calc):
     """
     Updates the position array (pos) for each particle and the velocity array (vel) for each particle
-    using the Euler-Cromer integration method
+    using the Euler-Cromer integration method, a first order method
 
     Parameters
     ----------
@@ -106,7 +106,8 @@ def euler_cromer_integrator(mass, pos, vel, dt, G, softening, acc_calc):
 def euler_richardson_integrator(mass, pos, vel, dt, G, softening, acc_calc):
     """
     Updates the position array (pos) for each particle and the velocity array (vel) for each particle
-    using the Euler-Richardson integration method
+    using the Euler-Richardson integration method, a second order method
+    Source: https://www.physics.udel.edu/~bnikolic/teaching/phys660/numerical_ode/node4.html
 
     Parameters
     ----------
@@ -137,14 +138,44 @@ def euler_richardson_integrator(mass, pos, vel, dt, G, softening, acc_calc):
     vel += acc_mid*dt
     pos += vel_mid*dt
 
-##########################################################
-#### SOMETHING SEEMS TO BE WRONG WITH THIS INTEGRATOR ####
-##########################################################
+
+def verlet_integrator(mass, pos, vel, dt, G, softening, acc_calc):
+    """
+    Updates the position array (pos) for each particle and the velocity array (vel) for each particle
+    using the Verlet integration, a 4th order method for position and a 2nd order method for velocity
+    Source: https://gereshes.com/2018/07/09/verlet-integration-the-n-body-problem/
+    Source: https://www.algorithm-archive.org/contents/verlet_integration/verlet_integration.html
+    Source: https://www.physics.udel.edu/~bnikolic/teaching/phys660/numerical_ode/node5.html
+    
+    Parameters
+    ----------
+    mass : np.array
+        A [N x 1] vector of particle masses        
+    pos : np.array
+        A [N x 3] matrix of position coordinates (x, y, z)
+    vel : np.array
+        A [N x 3] matrix of velocities for each particle (vx, vy, vz)
+    dt : float
+        The size of the time set for each iteration
+    G : float
+        Newton's Gravitational constant
+    softening : float
+        An amount of softening used to create spacing between particles to avoid numerical instabilities
+    acc_calc : callable
+        A callable function used to compute the net acceleration on all n particles in each direction (x,y,z)
+    """
+    acc1 = acc_calc(pos, mass, G, softening) # Compute the acceleration vectors
+    pos += vel*dt + 0.5*acc1*dt**2 # Update the position vectors
+    acc2 = acc_calc(pos, mass, G, softening) # Re-compute acc after the position update
+    vel += 0.5*(acc1 + acc2)*dt # Update the velocity vectors
+
+
 def RK4_integrator(mass, pos, vel, dt, G, softening, acc_calc):
     """
     Updates the position array (pos) for each particle and the velocity array (vel) for each particle
     using the Runge-Kutta 4th order integration method
-
+    Source: https://spiff.rit.edu/richmond/nbody/OrbitRungeKutta4.pdf
+    
     Parameters
     ----------
     mass : np.array
@@ -176,5 +207,4 @@ def RK4_integrator(mass, pos, vel, dt, G, softening, acc_calc):
     
     vel += (dt/6.0) * (k1v + 2*k2v + 2*k3v + k4v)
     pos += (dt/6.0) * (k1r + 2*k2r + 2*k3r + k4r)
-    
-    
+
