@@ -232,6 +232,11 @@ start_time = time() # Using Barnes-Hut, for a very large number of particles (n=
 pos_agg, KE_agg, PE_agg = run_simulation(N=10000, T=0.05, dt=0.01, softening=0.1, G=1, integrator=euler_cromer_integrator, use_BH=True, theta=1.5, random_state=111)
 print("\nDuration:",time()-start_time) # Duration: 75.06097078323364 (Euler-Cromer)
 
+### Generating run-time plots for each approach
+
+
+
+
 ### Testing the Barnes-Hut algo vs the standard approach calculating all forces ###
 N=10;np.random.seed(111) # Set the number of simulation particles to 10 and a random seed for replicability of results
 mass = 20.0*np.ones((N,1))/N  # Total mass of all particles together is 20, evenly split

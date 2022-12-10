@@ -7,8 +7,10 @@ Source: http://arborjs.org/docs/barnes-hut
 Source: https://beltoforion.de/en/barnes-hut-galaxy-simulator/
 """
 
+### Package Imports ###
 import numpy as np
 import matplotlib.pyplot as plt
+### Package Imports ###
 
 ###################################### ###################################### ######################################
 ###################################### ### The Barnes-Hut Algorithm in 2d ### ######################################

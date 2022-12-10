@@ -4,7 +4,9 @@ Authors: Eric Helmold, Alex Ho, Ivonne Martinez
 AM 111 Final Project: N-body Simulations
 """
 
+### Package Imports ###
 import numpy as np
+### Package Imports ###
 
 def leap_frog_integrator(mass, pos, vel, dt, G, softening, acc_calc):
     """

@@ -4,10 +4,15 @@ Authors: Eric Helmold, Alex Ho, Ivonne Martinez
 AM 111 Final Project: N-body Simulations
 """
 
+### Package Imports ###
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from barnes_hut_algo import octant_node
+from matplotlib.colors import to_rgb
+import colorsys
+### Package Imports ###
+
 
 # Each particle has a 
 #   mass (m), 
@@ -361,8 +366,31 @@ from moviepy.video.io.bindings import mplfig_to_npimage
 # https://zulko.github.io/moviepy/getting_started/videoclips.html
 
 
-def generate_simulation_video(pos_agg, T, dim_size=3, color_scheme=["blue"], show_tails=True,
-                              tail_len=50, figsize=(10,10), xlim=(-3, 3), ylim=(-3, 3), zlim=(-3, 3), legend=None,
+def RGB_lighten(input_RGB:tuple,lighten_factor=0.7):
+    """
+    Lightens an input RGB color by converting to the HLS domain and narrowing the gap between the current lightness value (L)
+    and the max possiable value of 1 by a specified lighten_factor.
+
+    Parameters
+    ----------
+    input_RGB : tuple
+        A tuple containing the RGB values of the input color.
+    lighten_factor : float, optional
+        A factor which controls the amount of lightening applied. The default is 0.7.
+
+    Returns
+    -------
+    tuple
+        A tuple containing the RGB color values of the lightened version of the input color.
+    """
+    assert max(input_RGB)<=1, "All input RGB color values must be at most 1"
+    h, l, s = colorsys.rgb_to_hls(*input_RGB) # Convert to HSL
+    l = min(1,l + (1-l)*lighten_factor) # Apply a lightening factor capped at 1
+    return colorsys.hls_to_rgb(h, l, s) # Convert back to RGB and return
+
+def generate_simulation_video(pos_agg, T, dim_size=3, color_scheme=["blue"], show_tails=True, tail_len=50, tail_lighten_factor = 0.7,
+                              figsize=(10,10), xlim=(-3, 3), ylim=(-3, 3), zlim=(-3, 3), set_lims = None, annotations=None, offset=None,
+                              legend=None, grid=False,
                               s=np.array([10]), file_type='mp4', output_filename="my_vid"):
     """
     Generates simulation videos as either an mp4 of gif. Capable of generating simulations in 3d or 2d with flexible plotting parameters
@@ -383,6 +411,8 @@ def generate_simulation_video(pos_agg, T, dim_size=3, color_scheme=["blue"], sho
         A toggle that when set to True will also plot the trailing positions of each particle in time in a ligher color. The default is True.
     tail_len : int, optional
         The number of trailing positions to plot if show_tails == True. The default is 50.
+    tail_lighten_factor : float
+        A multiplicative factor > 1 to be used to lighten the colors of the dots used for coloring the tails
     figsize : tuple, optional
         A length 2 tuple describing the plot size. The default is (10,10).
     xlim : tuple, optional
@@ -391,8 +421,16 @@ def generate_simulation_video(pos_agg, T, dim_size=3, color_scheme=["blue"], sho
         A length 2 tuple describing the y-axis limits. The default is (-3, 3).
     zlim : tuple, optional
         A length 2 tuple describing the z-axis limits. The default is (-3, 3).
+    set_lims : tuple, optional
+        A length 2 tuple describing the x, y, and z axis limits. If provided, will override the other xyzlim arguments.
+    annotations : list
+        A list of annotations that if provided will be plotted for each particle in the simulation
+    offset : float
+        A small amount to offset from each (x,y,z) particle coordinate location for where to draw the annotation labels
     legend : list
         Optional list that can be passed into label frames
+    grid : bool
+        Optional toggle if grid lines should be included.
     s : np.array, optional
         A list containing either 1 size for all particles or a separate size for each particle in the simulation. The default is [10].
     file_type : str, optional
@@ -402,47 +440,52 @@ def generate_simulation_video(pos_agg, T, dim_size=3, color_scheme=["blue"], sho
     """
     file_types=["gif","mp4"];dim_sizes = [2,3]
     assert file_type in file_types, f"file_type must be one of the following: {file_types}"
-    assert dim_size in dim_sizes, f"dim_size must be one of the following: {dim_sizes}"
+    assert dim_size in dim_sizes, f"dim_size must be one of the following: {dim_sizes}"  
+    
+    if set_lims is not None: # Set all plot limits at once using one argument
+        assert len(set_lims)==2,"set_lims must be a length 2 object that can be indexed"
+        xlim = ylim = zlim = set_lims
     
     fig, ax = plt.subplots(figsize=figsize) # Create a plotting space
-    ax.axis('off') # Remove x and y axis labels on outer plot area and outer box
+    
+    if not (dim_size == 2) and not (grid == True):
+        ax.axis('off') # Remove x and y axis labels on outer plot area and outer box
+
     fps=int(pos_agg.shape[2]/T) # Set the FPS to be the number of position vector obs / T so that the overall clip length matches T
     N = pos_agg.shape[0] # The particle count
+
+    if annotations is not None: # If annotations provided, there must be 1 per particle for each frame
+        assert len(annotations) == N, f"Number of annotations does not match N, got {len(annotations)} and N={N}"
+    if offset is None: # If no offset for the annotations provided, compute one based on the dimensions of the space
+        offset = 0.01*np.mean([xlim[1]-xlim[0],ylim[1]-ylim[0],zlim[1]-zlim[0]])
     
-    if dim_size == 3:    
+    if dim_size == 3: # If we are plotting in 3d, add the appropriate 3d plot area
         ax = fig.add_subplot(projection='3d') # Create 3d projection sub-axis
     
-    if len(s) == 1: # If we have been given a length 1 list
+    if len(s) == 1: # If we have been given a length 1 list for the particle plot sizes
         s = s[0]  # Then extract that element as the size for all particles
-        multi_size=False
-        frame_tail_s_global = s
-    else:
+        multi_size=False # Set an indicator for later use that all particles sizes are the same
+        frame_tail_s_global = s/20
+    else: # Otherwise, if given a list of multiple particles sizes, first check that it is dimensionally compatible with the # of particles
         assert pos_agg.shape[0] == len(s), f"s must be the same length as n, the number of particles, got {len(s)} and {pos_agg.shape[0]}"
-        multi_size=True
+        multi_size=True # Set an indicator for later use that all particles sizses are not the same
         frame_tail_s_global = np.repeat(s, tail_len + 1, axis=0)/20
     
     if len(color_scheme) == 1: # If only 1 color is passed in
         multi_color=False
-        if color_scheme=="red":
-            main_col = [1,0,0];tail_col = [1.0,0.7,0.7]
-        elif color_scheme=="green":
-            main_col = [0,1,0];tail_col = [0.7,1.0,0.7]
-        else:
-            main_col = [0,0,1];tail_col = [0.7,0.7,1.0]
+        main_col = to_rgb(color_scheme[0]) # Convert an input color into an RGB tuple
+        tail_col = RGB_lighten(main_col,tail_lighten_factor) # Generate a tail color that is a lightened version
         frame_tail_col_global = tail_col
-    else: # If multiple colors are passed in, then perform dimensionality checks and convert all
+    else: # If multiple colors are passed in, then perform a dimensionality check
         assert len(color_scheme) == pos_agg.shape[0], f"color_scheme and pos_agg number of particles mismatch: {len(color_scheme)} and {pos_agg.shape}"
-        main_col_dict = {"red":[1,0,0],"green":[0,1,0],"blue":[0,0,1]}
-        tail_col_dict = {"red":[1,0.7,0.7],"green":[0.7,1,0.7],"blue":[0.7,0.7,1]}
-        main_col = np.array([main_col_dict[col] for col in color_scheme])
-        tail_col = np.array([tail_col_dict[col] for col in color_scheme])
-        multi_color=True
+        multi_color=True # Set an indicator for later use that all particles do not have the same color
+        main_col = [to_rgb(col) for col in color_scheme] # Convert each color provided to an RGB tuple
+        tail_col = [RGB_lighten(col,tail_lighten_factor) for col in main_col] # Generate a list of lightened colors for the tails
         frame_tail_col_global = np.repeat(tail_col, tail_len + 1, axis=0)
         
     def make_frame_2d(t):
         t = int(t*fps) # Convert to int for indexing purposes
         ax.clear() # Clear the plot for the next image to be added
-        ax.axis('off') # Remove x and y axis labels on outer plot area and outer box
         
         if show_tails:
             xx = pos_agg[:,0,max(t-tail_len,0):t+1].reshape(-1) # Get the trailing 50 position obs in the x direction
@@ -459,16 +502,26 @@ def generate_simulation_video(pos_agg, T, dim_size=3, color_scheme=["blue"], sho
                 else: # Otherwise, use the dot size  that is common to all particle tails if only 1 specified
                     frame_tail_s = s/20
             
-                ax.scatter(xx,yy,s=frame_tail_s,color=frame_tail_col) # Plot the particle tails 
+                ax.scatter(xx, yy, s=frame_tail_s, color=frame_tail_col, zorder=1) # Plot the particle tails 
             
             else: # If we are beyond the initial period, all tail lengths will be equal to tail_len so we can use the same s and col
-                ax.scatter(xx,yy,s=frame_tail_s_global,color=frame_tail_col_global) # Plot the particle tails 
-                                
+                ax.scatter(xx,yy,s=frame_tail_s_global,color=frame_tail_col_global,zorder=1) # Plot the particle tails 
+        
+        
+        ax.scatter(pos_agg[:,0,t],pos_agg[:,1,t],s=s,color=main_col,zorder=3) # Plot the most recent obs in a dark color
+        
+        if annotations is not None: # If annotations were passed in, then add them to the frame
+            for j,ann in enumerate(annotations):
+                ax.annotate(ann, (pos_agg[j,0,t]+offset,pos_agg[j,1,t]+offset)) # Create annotations with a small offset from the particles
             
-        ax.scatter(pos_agg[:,0,t],pos_agg[:,1,t],s=s,color=main_col) # Plot the most recent obs in dark blue
+        if grid==True: # If toggled on, plot gridlines
+            ax.grid(color="lightgray",zorder=-3)
         ax.set(xlim=xlim, ylim=ylim) # Set x and y axis limits
         #ax.set_aspect('equal', 'box')
-        ax.set_xticks([]);ax.set_yticks([]) # Remove x and y axis ticks
+        
+        if not (dim_size == 2) and not (grid == True):
+            ax.axis('off') # Remove x and y axis labels on outer plot area and outer box
+            ax.set_xticks([]);ax.set_yticks([]) # Remove x and y axis ticks
         return mplfig_to_npimage(fig) # Return numpy image
        
     def make_frame_3d(t):
@@ -494,16 +547,17 @@ def generate_simulation_video(pos_agg, T, dim_size=3, color_scheme=["blue"], sho
                 ax.scatter(xx,yy,zz,s=frame_tail_s,color=frame_tail_col,zorder=1) # Plot the trailing obs in light color
             
             else: # If we are beyond the initial period, all tail lengths will be equal to tail_len so we can use the same s and col
-                ax.scatter(xx,yy,zz,s=frame_tail_s_global,color=frame_tail_col_global,zorder=1) # Plot the trailing obs in light color
+                ax.scatter(xx, yy, zz, s=frame_tail_s_global, color=frame_tail_col_global, zorder=1) # Plot the trailing obs in light color
         
-        ax.scatter(pos_agg[:,0,t],pos_agg[:,1,t],pos_agg[:,2,t]
-                   ,s=s,color=main_col,zorder=3) # Plot the most recent obs in dark color
-         
+        ax.scatter(pos_agg[:,0,t],pos_agg[:,1,t],pos_agg[:,2,t],s=s,color=main_col,zorder=3) # Plot the most recent obs in dark color
+        
+        if annotations is not None: # If annotations were passed in, then add them to the frame
+            for j,ann in enumerate(annotations): # Create annotations with a small offset from the particles
+                ax.text(pos_agg[j,0,t]+offset,pos_agg[j,1,t]+offset,pos_agg[j,2,t]+offset, '%s' % (str(ann)), size=10, zorder=3,  color='k') 
+        
         ax.set(xlim=xlim, ylim=ylim, zlim=zlim) # Set x, y, z axis limits
         if legend is not None:
             ax.legend(handles=legend)
-        #ax.set_aspect('equal', 'box')
-        #ax.set_xticks([]);ax.set_yticks([]) # Remove x and y axis ticks
         return mplfig_to_npimage(fig) # Return numpy image
     
     # Create an animation object to be used in the animation generation
@@ -520,3 +574,7 @@ def generate_simulation_video(pos_agg, T, dim_size=3, color_scheme=["blue"], sho
         animation.write_videofile(output_filename+"."+file_type,fps=fps)
     else:
         raise ValueError(f"file_type must be one of the following: {file_types}")
+
+
+
+
