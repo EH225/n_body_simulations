@@ -258,7 +258,8 @@ def compute_energy(pos, vel, mass, G):
     return (KE, PE)
 
 
-def run_simulation(N, T, dt, softening, G, integrator, normalize_momentum=True, initial_conditions=None, use_BH=False, theta=0.5, random_state=111):
+def run_simulation(N, T, dt, softening, G, integrator, normalize_momentum=True, initial_conditions=None, random_state=111,
+                   use_BH=False, theta=0.5, return_realism_metrics=False, return_velocity = False):
     """
     Main wrapper function for running the N-body simulation for a given set of input parameters
 
@@ -281,12 +282,16 @@ def run_simulation(N, T, dt, softening, G, integrator, normalize_momentum=True, 
     initial_conditions : dict
         A dictionary of initial conditions, if provided will override the random initialization of initial conditions
         Must provide as keys: mass, pos, vel with their associated np.arrays
+    random_state : int
+        A random state for replicating the random initialization of the initial conditions        
     use_BH : bool
         A toggle to select if the Barnes-Hut algorithm should be used in the computation of acceleration in this simulation
     theta : float
         A parameter in the Barnes Hut algorithm for determining if particles are far enough away to be considered as 1 mass
-    random_state : int
-        A random state for replicating the random initialization of the initial conditions
+    return_realism_metrics : bool
+        A toggle to select if realism metrics should also be returned in addition to the aggregate position array
+    return_velocity : bool
+        A toggle to select if an aggregation of the velocity of each particle at each time step should be returns as well
 
     Returns
     -------
@@ -320,12 +325,18 @@ def run_simulation(N, T, dt, softening, G, integrator, normalize_momentum=True, 
     if normalize_momentum==True:
         vel -= np.mean(mass * vel, axis=0) / np.mean(mass)
     
-    KE, PE  = compute_energy(pos, vel, mass, G) # Calculate initial energy of system, kinetic and potential
+    if return_realism_metrics:
+        KE, PE  = compute_energy(pos, vel, mass, G) # Calculate initial energy of system, kinetic and potential
     
     # Create data-aggregation objects to store the values of our simulation at each time step
-    pos_agg = np.zeros((N,3,Nt+1));pos_agg[:,:,0] = pos # Create a [N x 3 x Nt+1] array to store particle positions
-    KE_agg = np.zeros(Nt+1);KE_agg[0] = KE # Create a [Nt+1] array to store the system KE
-    PE_agg = np.zeros(Nt+1);PE_agg[0] = PE # Create a [Nt+1] array to store the system PE    
+    pos_agg = np.zeros((N,3,Nt+1));pos_agg[:,:,0] = pos.copy() # Create a [N x 3 x Nt+1] array to store particle positions
+    
+    if return_velocity:
+        vel_agg = np.zeros((N,3,Nt+1));vel_agg[:,:,0] = vel.copy() # Create a [N x 3 x Nt+1] array to store particle velocities
+    
+    if return_realism_metrics:
+        KE_agg = np.zeros(Nt+1);KE_agg[0] = KE # Create a [Nt+1] array to store the system KE
+        PE_agg = np.zeros(Nt+1);PE_agg[0] = PE # Create a [Nt+1] array to store the system PE    
     
     if use_BH==True: # If set to True, then use the Barnes-Hut algorithm to calculate acceleration
         acc_calc = compute_acceleration_BH_closure(theta) # Use a closure to bind theta to the function
@@ -340,12 +351,27 @@ def run_simulation(N, T, dt, softening, G, integrator, normalize_momentum=True, 
         # Update the postion vector and velocity vector for each particle using the integrator
         integrator(mass, pos, vel, dt, G, softening, acc_calc)
         
-        # Archive new particle positions and system energy measures
-        pos_agg[:,:,i+1] = pos
-        KE_agg[i+1], PE_agg[i+1] = compute_energy(pos, vel, mass, G)
+        pos_agg[:,:,i+1] = pos # Archive new particle positions in the output aggregate data structure
+        
+        if return_velocity: # Archive new particle velocities in the output aggregate data structure
+            vel_agg[:,:,i+1] = vel
+        
+        if return_realism_metrics: # Archive realism metrics for this time step in output aggregate data structure
+            KE_agg[i+1], PE_agg[i+1] = compute_energy(pos, vel, mass, G)
     
-    return pos_agg, KE_agg, PE_agg
-
+    if return_realism_metrics:
+        realism_metrics = {"KE":KE_agg,"PE":PE_agg}
+        if return_velocity:
+            return pos_agg, vel_agg, realism_metrics
+        else: # If return_velocity==False
+            return pos_agg, realism_metrics
+    
+    else: # If return_realism_metrics==False
+        if return_velocity: 
+            return pos_agg, vel_agg
+        else: # If return_velocity==False
+            return pos_agg
+    
 
 def plot_simulation_energy(time_axis,KE_agg,PE_agg,ax=None,figsize=(8,6)):
     if ax is None:
