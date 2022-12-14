@@ -35,7 +35,7 @@ import matplotlib.patches as mpatches
 pos_agg, KE_agg, PE_agg = run_simulation(N=50, T=20, dt=0.01, softening=0.1, G=1, integrator=leap_frog_integrator, use_BH=False, random_state=111)
 time_axis = np.arange(len(KE_agg))*0.01;plot_simulation_energy(time_axis,KE_agg,PE_agg)
 generate_simulation_video(pos_agg, 20, 2, ['blue'], show_tails=True, file_type="mp4", output_filename="particle_sim_n50")
-
+pos_agg.shape
 # Using leap frog integration
 pos_agg, KE_agg, PE_agg = run_simulation(N=50, T=10, dt=0.01, softening=0.1, G=1, integrator=leap_frog_integrator, use_BH=False, random_state=111)
 time_axis = np.arange(len(KE_agg))*0.01;plot_simulation_energy(time_axis,KE_agg,PE_agg)
@@ -57,7 +57,7 @@ pos_agg, KE_agg, PE_agg = run_simulation(N=N, T=10, dt=0.01, softening=0.1, G=1,
                                                              "pos":np.concatenate([np.random.normal(2,0.5,N//2*3).reshape(N//2,3),np.random.normal(-2,0.5,N//2*3).reshape(N//2,3)]),
                                                              "vel":np.random.randn(N,3)},
                                          integrator=leap_frog_integrator, use_BH=False, random_state=111)
-
+pos_agg[0].shape
 time_axis = np.arange(len(KE_agg))*0.01;plot_simulation_energy(time_axis,KE_agg,PE_agg)
 
 generate_simulation_video(pos_agg, 10, 3, ['red']*25+['blue']*25,show_tails=True, figsize=(10,10), xlim = (-3,3), ylim=(-3,3), s=[150],
