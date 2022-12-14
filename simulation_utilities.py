@@ -274,6 +274,7 @@ def center_mass(mass,pos):
         The center of mass at the given postitions
 
     """
+
     # center_mass = (Σmx)/M where we are taking the dot product between the x,y,z coordinate and diving by M which is the sum of every mass
     cm = (mass.T @ pos)/mass.sum()
 
@@ -299,6 +300,31 @@ def calc_momentum(vel, mass):
     p= (vel*mass).sum()
 
     return  p
+
+def calculate_angular_momentum(pos, vel, mass):
+    """
+    Calculate the current angular momentum of the system of particles
+
+    Parameters
+    ----------
+    vel : np.array
+        A [N x 3] matrix of velocities for each particle (vx, vy, vz)
+    mass : np.array
+        A [N x 1] vector of particle masses
+    pos : np.array
+        A [N x 3] matrix of position coordinates (x, y, z)
+
+    Returns
+    -------
+    L : np.array
+        A [Nx1] vector of the angular momentum (Lx, Ly, Lz)for all particles in the system
+    """
+
+    # L = mvr where m is the mass, v is the tangential velocity relative to the axis of rotation,
+    # and r is the distance from the object to the center of mass which it rotates on
+    L = mass.reshape(-1,1). T @ np.cross(pos, vel) #cross is the cross product of position and velocity
+
+    return L
 
 def run_simulation(N, T, dt, softening, G, integrator, normalize_momentum=True, initial_conditions=None, random_state=111,
                    use_BH=False, theta=0.5, return_realism_metrics=False, return_velocity = False):
