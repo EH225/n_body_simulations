@@ -279,6 +279,27 @@ def center_mass(mass,pos):
 
     return cm
 
+def calc_momentum(vel, mass):
+    """
+    Calculate the momentum of the system of particles
+
+    Parameters
+    ----------
+    vel : np.array
+        A [N x 3] matrix of velocities for each particle (vx, vy, vz)
+    mass : np.array
+        A [N x 1] vector of particle masses
+
+    Returns
+    -------
+     momentum : float
+        The momentum of every particle in the system at given step
+    """
+    # p = mv where p is momentum, m is mass and v is velocity
+    p= (vel*mass).sum()
+
+    return  p
+
 def run_simulation(N, T, dt, softening, G, integrator, normalize_momentum=True, initial_conditions=None, random_state=111,
                    use_BH=False, theta=0.5, return_realism_metrics=False, return_velocity = False):
     """
