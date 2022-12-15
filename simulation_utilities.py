@@ -301,7 +301,7 @@ def calc_momentum(vel, mass):
 
     return  p
 
-def calculate_angular_momentum(pos, vel, mass):
+def calc_angular_momentum(pos, vel, mass):
     """
     Calculate the current angular momentum of the system of particles
 
@@ -395,6 +395,8 @@ def run_simulation(N, T, dt, softening, G, integrator, normalize_momentum=True, 
 
     if return_realism_metrics:
         KE, PE  = compute_energy(pos, vel, mass, G) # Calculate initial energy of system, kinetic and potential
+        L = calc_angular_momentum(pos, vel, mass) # Calculate initial angular momentum
+        cm = center_mass(mass,pos)# Calculate initial center of mass
 
     # Create data-aggregation objects to store the values of our simulation at each time step
     pos_agg = np.zeros((N,3,Nt+1));pos_agg[:,:,0] = pos.copy() # Create a [N x 3 x Nt+1] array to store particle positions
@@ -405,6 +407,11 @@ def run_simulation(N, T, dt, softening, G, integrator, normalize_momentum=True, 
     if return_realism_metrics:
         KE_agg = np.zeros(Nt+1);KE_agg[0] = KE # Create a [Nt+1] array to store the system KE
         PE_agg = np.zeros(Nt+1);PE_agg[0] = PE # Create a [Nt+1] array to store the system PE
+        TE = np.zeros(Nt+1); TE[0] = KE + PE # Create a [Nt+1] array to store the system Total Energy
+        PCTE = np.zeros(Nt+1); PCTE[0] = 0 # Create a [Nt+1] array to store the Total Energy Percentage Chage
+        SL = np.zeros((Nt+1,3)); SL[0] = L # Create a [Nt+1] array to store the systems angular momentum
+        CM = np.zeros((Nt+1,3)); CM[0] = cm # Create a [Nt+1] array to store the systems center of mass
+
 
     if use_BH==True: # If set to True, then use the Barnes-Hut algorithm to calculate acceleration
         acc_calc = compute_acceleration_BH_closure(theta) # Use a closure to bind theta to the function
@@ -426,9 +433,13 @@ def run_simulation(N, T, dt, softening, G, integrator, normalize_momentum=True, 
 
         if return_realism_metrics: # Archive realism metrics for this time step in output aggregate data structure
             KE_agg[i+1], PE_agg[i+1] = compute_energy(pos, vel, mass, G)
+            TE[i+1] = KE_agg[i+1] + PE_agg[i+1]
+            PCTE[i+1] = ((TE[i+1]-TE[i]) / TE[i]) * 100
+            SL[i+1] = calc_angular_momentum(pos, vel, mass)
+            CM[i+1] = center_mass(mass,pos)
 
     if return_realism_metrics:
-        realism_metrics = {"KE":KE_agg,"PE":PE_agg}
+        realism_metrics = {"KE":KE_agg,"PE":PE_agg, "Total_Energy": TE, "Percentage_Change_of_Total_Energy": PCTE, "Simulation_Angular_Momentum": SL, "Center_Mass": CM }
         if return_velocity:
             return pos_agg, vel_agg, realism_metrics
         else: # If return_velocity==False
@@ -451,6 +462,47 @@ def plot_simulation_energy(time_axis,KE_agg,PE_agg,ax=None,figsize=(8,6)):
     ax.set_xlabel("Time");ax.set_ylabel("Energy")
     ax.set_title("Kinetic, Potential and Total Energy of the System over Time")
 
+def plot_percentage_energy_change(PCTE):
+    # Statistical Measures
+    PCTE_mean = np.mean(PCTE)
+    PCTE_sd = np.std(PCTE)
+
+    textstr = '\n'.join((
+    r'$\mathrm{mean}=%.2f$' % (PCTE_mean, ),
+    r'$\sigma=%.2f$' % (PCTE_sd, )))
+
+    plt.plot(t_all,PC_Total_Energy, color = 'crimson')
+    plt.title('Percentage Change of Total Energy')
+    plt.xlabel('Time')
+    plt.ylabel('Percentage of Total Energy(J)')
+    plt.text(7,-4, textstr, fontsize=14,verticalalignment='top', bbox=props)
+
+
+def plot_center_mass(cm):
+    cm_x = cm[:,0]
+    cm_y = cm[:,1]
+    cm_z = cm[:,2]
+
+    plt.plot(t_all,cm_x, color = 'red', label ='x')
+    plt.plot(t_all,cm_y, color = 'blue', label = 'y')
+    plt.plot(t_all,cm_z, color = 'yellowgreen', label = 'z')
+    plt.title('Center of Mass per Timestep')
+    plt.xlabel('Time')
+    plt.ylabel('Center of Mass')
+    plt.legend()
+
+def plot_angular_momentum(simultation_L):
+    x_am = angular_momentum[:,0]
+    y_am = angular_momentum[:,1]
+    z_am = angular_momentum[:,2]
+
+    plt.plot(t_all,x_am, color = 'red', label ='x')
+    plt.plot(t_all,x_am+ y_am + z_am, color = 'yellowgreen', label ='x')
+    plt.plot(t_all,y_am, color = 'blue', label = 'y')
+    plt.title('Total Angular Momentum Per Coordinate Over Time ')
+    plt.xlabel('Time')
+    plt.ylabel('Total Angular Momentum')
+    plt.legend()
 
 
 # Importing movie py libraries
