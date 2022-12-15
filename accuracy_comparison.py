@@ -4,7 +4,6 @@ Created on Wed Dec 14 18:09:55 2022
 
 @author: alexh
 """
-
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,6 +12,8 @@ from integrators import *
 from simulation_utilities import *
 from kepler_v2 import *
 from barnes_hut_algo import octant_node
+import pandas as pd
+from tabulate import tabulate
 
 N = 2 # number of particles 
 T = 10
@@ -73,39 +74,63 @@ pos_agg_RK4 = run_simulation(N=N, T=T, dt=dt, softening=0.1, G=G,
                                                              "vel":np.array([vel1, vel2])},
                                          integrator=RK4_integrator, use_BH=False, random_state=111)
 
-kepler_leap_diff = []
-kepler_euler_diff = []
-kepler_euler_cromer_diff = []
-kepler_euler_rich_diff = []
-kepler_verlet_diff = []
-kepler_RK4_diff = []
+# =============================================================================
+# Get MSE and RMSE for each numerical solution v. analytical solution
+# =============================================================================
 
-for i in range(len(pos_agg_kepler[1][1])):
-    ### leap frog
-    kepler_leap_diff.append(np.linalg.norm(pos_agg_leap_frog[1][1][i] - pos_agg_kepler[1][1][i]))
-    kepler_leap_diff_avg = np.average(np.array(kepler_leap_diff))
-    
-    ### euler
-    kepler_euler_diff.append(np.linalg.norm(pos_agg_euler[1][1][i] - pos_agg_kepler[1][1][i]))
-    kepler_euler_diff_avg = np.average(np.array(kepler_euler_diff))
-    
-    ### euler_cromer
-    kepler_euler_cromer_diff.append(np.linalg.norm(pos_agg_euler_cromer[1][1][i] - pos_agg_kepler[1][1][i]))
-    kepler_euler_cromer_diff_avg = np.average(np.array(kepler_euler_cromer_diff))
-    
-    ### euler_rich
-    kepler_euler_rich_diff.append(np.linalg.norm(pos_agg_euler_rich[1][1][i] - pos_agg_kepler[1][1][i]))
-    kepler_euler_rich_diff_avg = np.average(np.array(kepler_euler_rich_diff))
-    
-    ### verlet
-    kepler_verlet_diff.append(np.linalg.norm(pos_agg_verlet[1][1][i] - pos_agg_kepler[1][1][i]))
-    kepler_verlet_diff_avg = np.average(np.array(kepler_verlet_diff))
-    
-    ### RK4
-    kepler_RK4_diff.append(np.linalg.norm(pos_agg_RK4[1][1][i] - pos_agg_kepler[1][1][i]))
-    kepler_RK4_diff_avg = np.average(np.array(kepler_RK4_diff))
-    
-kepler_leap_diff_avg    
-kepler_euler_diff_avg
+### kepler_leap_mse & rmse & L2 norm
+kepler_leap_mse = round(((pos_agg_kepler.astype(float)-pos_agg_leap_frog.astype(float))**2).sum(), 3)
+kepler_leap_rmse = round(np.sqrt(((pos_agg_kepler.astype(float)-pos_agg_leap_frog.astype(float))**2)).sum(), 3)
+kepler_leap_norm = round(np.linalg.norm(pos_agg_kepler - pos_agg_leap_frog)[0], 3)
+
+### kepler_euler_mse & rmse
+kepler_euler_mse = round(((pos_agg_kepler.astype(float)-pos_agg_euler.astype(float))**2).sum(), 3)
+kepler_euler_rmse = round(np.sqrt(((pos_agg_kepler.astype(float)-pos_agg_euler.astype(float))**2)).sum(), 3)
+kepler_euler_norm = round(np.linalg.norm(pos_agg_kepler - pos_agg_euler)[0], 3)
+
+### kepler_euler_cromer_mse & rmse
+kepler_euler_cromer_mse = round(((pos_agg_kepler.astype(float)-pos_agg_euler_cromer.astype(float))**2).sum(), 3)
+kepler_euler_cromer_rmse = round(np.sqrt(((pos_agg_kepler.astype(float)-pos_agg_euler_cromer.astype(float))**2)).sum(), 3)
+kepler_euler_cromer_norm = round(np.linalg.norm(pos_agg_kepler - pos_agg_euler_cromer)[0], 3)
+
+### kepler_euler_rich_mse & rmse
+kepler_euler_rich_mse = round(((pos_agg_kepler.astype(float)-pos_agg_euler_rich.astype(float))**2).sum(), 3)
+kepler_euler_rich_rmse = round(np.sqrt(((pos_agg_kepler.astype(float)-pos_agg_euler_rich.astype(float))**2)).sum(), 3)
+kepler_euler_rich_norm = round(np.linalg.norm(pos_agg_kepler - pos_agg_euler_rich)[0], 3)
+
+### kepler_verlet_mse & rmse
+kepler_verlet_mse = round(((pos_agg_kepler.astype(float)-pos_agg_verlet.astype(float))**2).sum(), 3)
+kepler_verlet_rmse = round(np.sqrt(((pos_agg_kepler.astype(float)-pos_agg_verlet.astype(float))**2)).sum(), 3)
+kepler_verlet_norm = round(np.linalg.norm(pos_agg_kepler - pos_agg_verlet)[0], 3)
+
+### kepler_RK4_mse & rmse
+kepler_RK4_mse = round(((pos_agg_kepler.astype(float)-pos_agg_RK4.astype(float))**2).sum(), 3)
+kepler_RK4_rmse = round(np.sqrt(((pos_agg_kepler.astype(float)-pos_agg_RK4.astype(float))**2)).sum(), 3)
+kepler_RK4_norm = round(np.linalg.norm(pos_agg_kepler - pos_agg_RK4)[0], 3)
 
 
+# =============================================================================
+# Put values in a table
+# =============================================================================
+table = [[kepler_leap_mse, kepler_leap_rmse, kepler_leap_norm], 
+         [kepler_euler_mse, kepler_euler_rmse, kepler_euler_norm],
+         [kepler_euler_cromer_mse, kepler_euler_cromer_rmse, kepler_euler_cromer_norm],
+         [kepler_euler_rich_mse, kepler_euler_rich_rmse, kepler_euler_rich_norm],
+         [kepler_verlet_mse, kepler_verlet_rmse, kepler_verlet_norm],
+         [kepler_RK4_mse, kepler_RK4_rmse, kepler_RK4_norm]]
+df = pd.DataFrame(table, columns = ['MSE', 'RMSE', 'L2-norm'], 
+                  index=['Kepler v. leap-Frog', 
+                         'Kepler v. Euler',
+                         'Kepler v. Euler-Cromer',
+                         'Kepler v. Euler-Richardson',
+                         'Kepler v. Verlet',
+                         'Kepler v. RK4'])
+columns = ['Model Comparison', 'MSE', 'RMSE', 'L2-norm']
+# print(df)
+print(tabulate(df, headers=columns, tablefmt='fancy_grid', numalign="right", floatfmt=".2f"))
+
+# plot the dataframe
+for col in df.columns:
+    df[col].plot(kind='bar', figsize=(12,8))
+    plt.title(col)
+    plt.show()
