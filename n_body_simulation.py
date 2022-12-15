@@ -253,7 +253,7 @@ assert np.allclose(acc_calc1,acc_calc2) # Check that computing acceleration due 
 values_of_theta = np.linspace(0,5) # The values of theta to iterate over and create a comparison with
 acc_MAP = [abs(acc_calc1-compute_acceleration_BH(pos, mass, G, softening=0.1, theta=theta)).mean() for theta in values_of_theta]
 
-plt.figure(figsize=(8,6));AttributeErrorplt.plot(values_of_theta,acc_MAP,zorder=3,color='darkorange')
+plt.figure(figsize=(8,6));plt.plot(values_of_theta,acc_MAP,zorder=3,color='darkorange')
 plt.xlabel("Value of Theta");plt.ylabel("MAP");plt.title("Mean Absolute Error (MAP) of Acc. Calc. - BH Tree Calc")
 plt.grid(color='lightgray',zorder=-3) # As expected, when theta is very close to zero, there is no difference, as theta increases, the error
 # also increases up to a point at which it plateaus since all particles summarized as 1 cernter of mass is an upper limit of aggregation
