@@ -257,16 +257,16 @@ def compute_energy(pos, vel, mass, G):
 
     return (KE, PE)
 
-def center_mass(mass,pos):
+def center_mass(pos, mass):
     """
     Calculate the center of mass for the n-body simulation
 
      Parameters
     ----------
-    mass : np.array
-        A [N x 1] vector of particle masses
     pos : np.array
         A [N x 3] matrix of position coordinates (x, y, z)
+    mass : np.array
+        A [N x 1] vector of particle masses
 
     Returns
     -------
@@ -274,11 +274,8 @@ def center_mass(mass,pos):
         The center of mass at the given postitions
 
     """
-
     # center_mass = (Σmx)/M where we are taking the dot product between the x,y,z coordinate and diving by M which is the sum of every mass
-    cm = (mass.T @ pos)/mass.sum()
-
-    return cm
+    return (mass.T @ pos)/mass.sum()
 
 def calc_momentum(vel, mass):
     """
@@ -297,9 +294,7 @@ def calc_momentum(vel, mass):
         The momentum of every particle in the system at given step
     """
     # p = mv where p is momentum, m is mass and v is velocity
-    p= (vel*mass).sum()
-
-    return  p
+    return (vel*mass).sum()
 
 def calc_angular_momentum(pos, vel, mass):
     """
@@ -307,12 +302,12 @@ def calc_angular_momentum(pos, vel, mass):
 
     Parameters
     ----------
+    pos : np.array
+        A [N x 3] matrix of position coordinates (x, y, z)
     vel : np.array
         A [N x 3] matrix of velocities for each particle (vx, vy, vz)
     mass : np.array
         A [N x 1] vector of particle masses
-    pos : np.array
-        A [N x 3] matrix of position coordinates (x, y, z)
 
     Returns
     -------
@@ -321,13 +316,11 @@ def calc_angular_momentum(pos, vel, mass):
     """
 
     # L = mvr where m is the mass, v is the tangential velocity relative to the axis of rotation,
-    # and r is the distance from the object to the center of mass which it rotates on
-    L = mass.reshape(-1,1). T @ np.cross(pos, vel) #cross is the cross product of position and velocity
-
-    return L
+    # and r is the distance from the point about which the angular rotation is being computed (the origin in this case)
+    return  mass.reshape(-1,1). T @ np.cross(pos, vel) # cross is the cross product of position and velocity
 
 def run_simulation(N, T, dt, softening, G, integrator, normalize_momentum=True, initial_conditions=None, random_state=111,
-                   use_BH=False, theta=0.5, return_realism_metrics=False, return_velocity = False):
+                   use_BH=False, theta=0.5, return_realism_metrics=False, return_velocity=False):
     """
     Main wrapper function for running the N-body simulation for a given set of input parameters
 
@@ -396,7 +389,7 @@ def run_simulation(N, T, dt, softening, G, integrator, normalize_momentum=True, 
     if return_realism_metrics:
         KE, PE  = compute_energy(pos, vel, mass, G) # Calculate initial energy of system, kinetic and potential
         L = calc_angular_momentum(pos, vel, mass) # Calculate initial angular momentum
-        cm = center_mass(mass,pos)# Calculate initial center of mass
+        cm = center_mass(pos,mass)# Calculate initial center of mass
 
     # Create data-aggregation objects to store the values of our simulation at each time step
     pos_agg = np.zeros((N,3,Nt+1));pos_agg[:,:,0] = pos.copy() # Create a [N x 3 x Nt+1] array to store particle positions
@@ -436,10 +429,12 @@ def run_simulation(N, T, dt, softening, G, integrator, normalize_momentum=True, 
             TE[i+1] = KE_agg[i+1] + PE_agg[i+1]
             PCTE[i+1] = ((TE[i+1]-TE[i]) / TE[i]) * 100
             SL[i+1] = calc_angular_momentum(pos, vel, mass)
-            CM[i+1] = center_mass(mass,pos)
+            CM[i+1] = center_mass(pos,mass)
 
     if return_realism_metrics:
-        realism_metrics = {"KE":KE_agg,"PE":PE_agg, "Total_Energy": TE, "Percentage_Change_of_Total_Energy": PCTE, "Simulation_Angular_Momentum": SL, "Center_Mass": CM }
+        realism_metrics = {"KE":KE_agg,"PE":PE_agg, "Total_Energy": TE,
+                           "Percentage_Change_of_Total_Energy": PCTE,
+                           "Simulation_Angular_Momentum": SL, "Center_Mass": CM }
         if return_velocity:
             return pos_agg, vel_agg, realism_metrics
         else: # If return_velocity==False
@@ -720,3 +715,23 @@ def generate_simulation_video(pos_agg, T, dim_size=3, color_scheme=["blue"], sho
         animation.write_videofile(output_filename+"."+file_type,fps=fps)
     else:
         raise ValueError(f"file_type must be one of the following: {file_types}")
+
+def polar_to_xy(r,theta):
+    """
+    Converts (r,theta) polar coordinate pairs into (x,y) Cartesian coordinates
+
+    Parameters
+    ----------
+    r : float or np.array
+        A collection of radius values in polar coordinates i.e. distance from origin.
+    theta : float or np.array
+        A collection of theta values in polar coordinates i.e. angle on the unit circle.
+
+    Returns
+    -------
+    x : float or np.array
+        A collection of x-coordinates for each particle in the Cartesian plane.
+    y : float or np.array
+        A collection of y-coordinates for each particle in the Cartesian plane.
+    """
+    return (r * np.cos(theta), r * np.sin(theta))
