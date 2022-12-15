@@ -46,25 +46,28 @@ def kepler_pos(pos, mass, T, dt, G):
         theta_list.append(theta)
         r_list.append(r)
     
-    x_list, y_list = [], []
+    x, y = [], []
+    x.append(pos[0][0])
+    y.append(pos[1][0])
     ### Calculate polar according to x and y
     for i in range(len(theta_list)):
-        x_list.append(r_list[i] * np.cos(theta_list[i]))
-        y_list.append(r_list[i] * np.sin(theta_list[i]))
+        x.append(r_list[i] * np.cos(theta_list[i]))
+        y.append(r_list[i] * np.sin(theta_list[i]))
     
-    x_list = np.array(x_list).reshape(len(x_list),)
-    y_list = np.array(y_list).reshape(len(y_list),)
+    x = np.array(x).reshape(len(x),)
+    y = np.array(y).reshape(len(y),)
     
-    return x_list, y_list  # output 0s for z
+    pos_agg_planet = np.stack([x,y,np.zeros(len(x))])
+    pos_agg_planet.shape
+    pos_agg_sun = np.stack([np.zeros(len(x)),np.zeros(len(x)),np.zeros(len(x))])
+    
+    pos_agg = np.stack([pos_agg_planet,pos_agg_sun]) # Array dim of (2, 3, 20)
+    
+    return pos_agg 
+# epler_pos(total_pos, total_m, T, dt, G).shape
 
-x, y= kepler_pos(total_pos, total_m, T, dt, G)
-
-pos_agg_planet = np.stack([x,y,np.zeros(len(x))])
-pos_agg_sun = np.stack([np.zeros(len(x)),np.zeros(len(x)),np.zeros(len(x))])
-
-pos_agg = np.stack([pos_agg_planet,pos_agg_sun]) # Array dim of (2, 3, 20)
-mass = np.array([m1,m2])
-
-generate_simulation_video(pos_agg, 5, 2, ['blue','orange'], show_tails=True, file_type="mp4", output_filename="test_2d_new")
+# mass = np.array([m1,m2])
+ 
+# generate_simulation_video(pos_agg, 5, 2, ['blue','orange'], show_tails=True, file_type="mp4", output_filename="test_2d_new")
 
 # Source: https://en.wikipedia.org/wiki/Two-body_problem
