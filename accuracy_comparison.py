@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Dec 14 18:09:55 2022
-
-@author: alexh
+Authors: Eric Helmold, Alex Ho, Ivonne Martinez
+AM 111 Final Project: N-body Simulations
 """
+
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import numpy as np

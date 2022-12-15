@@ -3,17 +3,7 @@
 Authors: Eric Helmold, Alex Ho, Ivonne Martinez
 AM 111 Final Project: N-body Simulations
 
-DOC: 11/05/2022
-Last Updated: 12/07/2022
-Purpose: Replicate the work found here: 
-    https://medium.com/swlh/create-your-own-n-body-simulation-with-python-f417234885e9
-    https://github.com/pmocz/nbody-python
-    https://github.com/techwithtim/Python-Planet-Simulation/blob/main/tutorial.py
-    
-    Potential Energy: https://www.school-for-champions.com/science/gravitation_potential_energy.htm
-    Creating a simulation video: https://www.youtube.com/watch?v=WTLPmUHTPqo
-    Simulation videos: https://www.geeksforgeeks.org/moviepy-creating-animation-using-matplotlib/
-    Simulation Videos: https://stackoverflow.com/questions/34975972/how-can-i-make-a-video-from-array-of-images-in-matplotlib
+Main driver script demonstrating methods and functionalities    
 """
 
 ### Package Imports ###
@@ -231,10 +221,6 @@ print("\nDuration:",time()-start_time) # Duration: 68.89757561683655 (Euler-Crom
 start_time = time() # Using Barnes-Hut, for a very large number of particles (n=10000)
 pos_agg, KE_agg, PE_agg = run_simulation(N=10000, T=0.05, dt=0.01, softening=0.1, G=1, integrator=euler_cromer_integrator, use_BH=True, theta=1.5, random_state=111)
 print("\nDuration:",time()-start_time) # Duration: 75.06097078323364 (Euler-Cromer)
-
-### Generating run-time plots for each approach
-
-
 
 
 ### Testing the Barnes-Hut algo vs the standard approach calculating all forces ###

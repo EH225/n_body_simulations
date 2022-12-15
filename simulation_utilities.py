@@ -37,7 +37,8 @@ def compute_acceleration(pos, mass, G, softening=0.1):
     Returns
     -------
     A [N x 3] np.array containing the acceleration of each particle in the x, y, z directions
-
+    
+    Source: https://medium.com/swlh/create-your-own-n-body-simulation-with-python-f417234885e9
     """
     # Positions r = [x,y,z] for all particles, extract vector representations
     x = pos[:,0:1];y = pos[:,1:2];z = pos[:,2:3]
@@ -505,8 +506,10 @@ def plot_angular_momentum(time_axis,simultation_L, ax=None,figsize=(8,6)):
 # Importing movie py libraries
 from moviepy.editor import VideoClip
 from moviepy.video.io.bindings import mplfig_to_npimage
+# Main Sources:
 # https://www.geeksforgeeks.org/moviepy-creating-animation-using-matplotlib/
 # https://zulko.github.io/moviepy/getting_started/videoclips.html
+# https://stackoverflow.com/questions/34975972/how-can-i-make-a-video-from-array-of-images-in-matplotlib
 
 
 def RGB_lighten(input_RGB:tuple,lighten_factor=0.7):
