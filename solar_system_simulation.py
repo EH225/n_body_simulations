@@ -106,14 +106,13 @@ sim_G = true_G *(10**24) * (1/1000)**3 * (60*60*24)**2
 ###                    ###
 
 # Plot the inner solar system objects: ["Sun","Mercury","Venus","Earth","Mars"]
-pos_agg, KE_agg, PE_agg = run_simulation(N=5, T=365*10, dt=1, softening=0.001,
+pos_agg, realism_metrics = run_simulation(N=5, T=365*10, dt=1, softening=0.001,
                                          normalize_momentum = False, initial_conditions={"mass":mass_arr.values.reshape(-1,1).copy(),
                                                                                          "vel":vel_arr_km_day.values.copy(),
                                                                                          "pos":pos_arr.values.copy()},
-                                         G=sim_G, integrator=verlet_integrator, use_BH=False, random_state=111)
+                                         G=sim_G, integrator=verlet_integrator, use_BH=False, random_state=111,return_realism_metrics=True)
 
-time_axis = np.arange(len(KE_agg))*0.01;plot_simulation_energy(time_axis,KE_agg,PE_agg)
-
+time_axis = np.arange(len(realism_metrics["KE"]))*0.01;plot_simulation_energy(time_axis,realism_metrics["KE"],realism_metrics["PE"])
 # 2d 10 earth years animation - Tail lengths represent 1 years of earth time
 generate_simulation_video(pos_agg[:5,:,:], 30, 2, ['gold','darkgray','orange','blue','red'],
                           show_tails=True, tail_len=365, 
@@ -133,13 +132,13 @@ generate_simulation_video(pos_agg[:5,:,:], 30, 3, ['gold','darkgray','orange','b
 ###                   ###
 
 # Plot the full solar system objects: ["Sun","Mercury","Venus","Earth","Mars"]
-pos_agg, KE_agg, PE_agg = run_simulation(N=len(pos_arr), T=365*30, dt=5, softening=0.001,
+pos_agg, realism_metrics = run_simulation(N=len(pos_arr), T=365*30, dt=5, softening=0.001,
                                          normalize_momentum = False, initial_conditions={"mass":mass_arr.values.reshape(-1,1).copy(),
                                                                                          "vel":vel_arr_km_day.values.copy(),
                                                                                          "pos":pos_arr.values.copy()},
-                                         G=sim_G, integrator=verlet_integrator, use_BH=False, random_state=111)
+                                         G=sim_G, integrator=verlet_integrator, use_BH=False, random_state=111,return_realism_metrics=True)
 
-time_axis = np.arange(len(KE_agg))*0.01;plot_simulation_energy(time_axis,KE_agg,PE_agg)
+time_axis = np.arange(len(realism_metrics["KE"]))*0.01;plot_simulation_energy(time_axis,realism_metrics["KE"],realism_metrics["PE"])
 
 # 2d 30 earth years animation - Tail lengths represent 5 years of earth time
 generate_simulation_video(pos_agg, 30, 2, ['gold','darkgray','orange','blue','red','darkorange','yellow','blue','navy','navy'],
@@ -154,3 +153,41 @@ generate_simulation_video(pos_agg, 30, 3, ['gold','darkgray','orange','blue','re
                           file_type="mp4", output_filename="full_solar_sys_3d_30yr",
                           set_lims = [-5*10**9, 5*10**9], annotations=["","","","Earth","","Jupiter","Saturn","Uranus","Neptune","Pluto"],
                           s=np.log(radius_arr.values*(30/6371.01))*5)
+
+
+###                          ###
+### Large Solar System Model ###
+###                          ###
+
+G = 1 # Set the gravitational constant for this simulation
+sun_mass = 80000.0 # Set the mass of the sun for this simulation, should be much greater than the mass of the planets
+N = 500 # The number of planets in the solar system simulation model
+mass = np.random.normal(15,5,N) # Randomly generate planetary masses
+assert (mass>0).all() # Check that all masses have been randomly initialized to positive values
+theta = np.random.uniform(0,2*np.pi,N) # Generate random theta values for each particle (polar coordinates)
+r = np.random.uniform(40,150,N) # Generate random radius values for each particle (polar coordinates)
+z_vals = np.random.normal(0,3,N) # Generate random z-values for the position coords, gives the system some depth
+x, y = polar_to_xy(r,theta) # Convert from (r,theta) polar coordinates into (x,y) cartesian coordinates
+pos = np.vstack([x,y,z_vals]).T # Combine to create (x,y,z) initial conditions for each planet
+
+vel_t = np.sqrt(G*sun_mass/r) # Tangential velocity needed for a stable orbit: v = sqrt(GM/r)
+# Swap x and y and flip the sign on y to give us the velocity decomposition perpendicular to the radius to the orgin
+vel = np.vstack([-vel_t*np.sin(theta),vel_t*np.cos(theta),np.random.normal(0,0.2,N)]).T # Convert to (x,y,z) velocity for each particle
+
+# Now append to mass, pos, vel the values of the Sun in the center of the solar system / galaxy structure
+mass = np.insert(mass,0,sun_mass).reshape(-1,1) # Add the sun's mass
+pos = np.insert(pos,np.array([0]),0,axis=0) # Add the sun's starting position in the center at the origin
+vel = np.insert(vel,np.array([0]),0,axis=0) # Add the sun's starting velocity of zero
+
+pos_agg, realism_metrics = run_simulation(N=(N+1), T=50, dt=0.05, softening=3, G=1, integrator=verlet_integrator,
+                                          initial_conditions={"mass":mass,"pos":pos.copy(),"vel":vel.copy()}, 
+                                          normalize_momentum=True,
+                                          use_BH=False, random_state=111, return_realism_metrics=True)
+    
+time_axis = np.arange(len(realism_metrics["KE"]))*0.01;plot_simulation_energy(time_axis,realism_metrics["KE"],realism_metrics["PE"])
+
+generate_simulation_video(pos_agg, 50, 2, ["red"]+['blue']*N, show_tails=True, file_type="mp4", s=[500]+[10]*N,
+                          tail_len=25, set_lims=(-200,200),output_filename="large_solar_sys_sim_2d")
+
+generate_simulation_video(pos_agg, 50, 3, ["red"]+['blue']*N, show_tails=True, file_type="mp4", s=[500]+[10]*N,
+                          tail_len=25, set_lims=(-150,150),output_filename="large_solar_sys_sim_3d")
