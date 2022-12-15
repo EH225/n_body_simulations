@@ -457,7 +457,7 @@ def plot_simulation_energy(time_axis,KE_agg,PE_agg,ax=None,figsize=(8,6)):
     ax.set_xlabel("Time");ax.set_ylabel("Energy")
     ax.set_title("Kinetic, Potential and Total Energy of the System over Time")
 
-def plot_percentage_energy_change(time_axis,PCTE):
+def plot_percentage_energy_change(time_axis,PCTE,ax=None,figsize=(8,6)):
     # Statistical Measures
     PCTE_mean = np.mean(PCTE)
     PCTE_sd = np.std(PCTE)
@@ -466,14 +466,16 @@ def plot_percentage_energy_change(time_axis,PCTE):
     r'$\mathrm{mean}=%.2f$' % (PCTE_mean, ),
     r'$\sigma=%.2f$' % (PCTE_sd, )))
 
-    plt.plot(time_axis,PC_Total_Energy, color = 'crimson')
+    props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+
+    plt.plot(time_axis,PCTE, color = 'crimson')
+    plt.text(7,min(PCTE) + .1, textstr, fontsize=10,verticalalignment='top', bbox=props)
     plt.title('Percentage Change of Total Energy')
     plt.xlabel('Time')
     plt.ylabel('Percentage of Total Energy(J)')
-    plt.text(7,-4, textstr, fontsize=14,verticalalignment='top', bbox=props)
 
 
-def plot_center_mass(time_axis,cm):
+def plot_center_mass(time_axis,cm, ax=None,figsize=(8,6)):
     cm_x = cm[:,0]
     cm_y = cm[:,1]
     cm_z = cm[:,2]
@@ -486,10 +488,10 @@ def plot_center_mass(time_axis,cm):
     plt.ylabel('Center of Mass')
     plt.legend()
 
-def plot_angular_momentum(time_axis,simultation_L):
-    x_am = angular_momentum[:,0]
-    y_am = angular_momentum[:,1]
-    z_am = angular_momentum[:,2]
+def plot_angular_momentum(time_axis,simultation_L, ax=None,figsize=(8,6)):
+    x_am = simultation_L[:,0]
+    y_am = simultation_L[:,1]
+    z_am = simultation_L[:,2]
 
     plt.plot(time_axis, x_am, color = 'red', label ='x')
     plt.plot(time_axis, y_am, color = 'yellowgreen', label ='y')
