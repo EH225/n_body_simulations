@@ -155,182 +155,197 @@ generate_simulation_video(pos_agg, 30, 3, ['gold','darkgray','orange','blue','re
                           s=np.log(radius_arr.values*(30/6371.01))*5)
 
 
-###                          ###
-### Large Solar System Model ###
-###                          ###
+##############################################
+### Hypothetical Large Solar System Models ###
+##############################################
 
-G = 1 # Set the gravitational constant for this simulation
-sun_mass = 80000.0 # Set the mass of the sun for this simulation, should be much greater than the mass of the planets
-N = 700 # The number of planets in the solar system simulation model
-mass = np.random.normal(15,5,N) # Randomly generate planetary masses
-assert (mass>0).all() # Check that all masses have been randomly initialized to positive values
-theta = np.random.uniform(0,2*np.pi,N) # Generate random theta values for each particle (polar coordinates)
-r = np.random.uniform(40,150,N) # Generate random radius values for each particle (polar coordinates)
-z_vals = np.random.normal(0,3,N) # Generate random z-values for the position coords, gives the system some depth
-x, y = polar_to_xy(r,theta) # Convert from (r,theta) polar coordinates into (x,y) cartesian coordinates
-pos = np.vstack([x,y,z_vals]).T # Combine to create (x,y,z) initial conditions for each planet
+# Helper function for generating initial conditions related to solar systems
+def generate_solar_system(N:int=50, G:float=1, include_sun:bool=True, sun_mass:float=10000.0,
+                          mass_bounds:tuple=(2,10), radius_bounds:tuple=(40,150), sigma_z:float=3.0, rotations:tuple=(0,0,0),
+                          show_pos_plot:bool=True):
+    """
+    Function to generate the initial conditions of a solar system or galaxy. Return the pos, vel, mass arrays of a randomly
+    initialized n-body system based on specified seed criteria. Function can return a system with or without a central mass
+    e.g. a sun or black hole by using the center of mass of the particles collectively instead. Particles are randomly generated
+    in a circular pattern about the central mass which can be given a thickness and rotation.
 
-# Apply rotational transformations to the positions and velocities
-theta_x = np.pi/10 #np.pi/6 # Rotation about the x-axis
-theta_y = np.pi/10 #np.pi/12 # Rotation about the y-axis
-theta_z = 0 # Rotation about the y-axis
+    Parameters
+    ----------
+    N : float, optional
+        The number of planets/solar systems to include around the center of mass. The default is 50.
+    G : float, optional
+        Newton's Gravitational constant. The default is 1.
+    include_sun : bool, optional
+        A toggle for whether to include a central mass in the system. The default is True.
+    sun_mass : float, optional
+        The mass of the central body e.g. the sun or a black hole. The default is 10000.0.
+    mass_bounds : tuple, optional
+        A length 2 tuple describing the bounds of random mass generation for each of the N bodies. The default is (2,10).
+    radius_bounds : tuple, optional
+        A length 2 tuple describing the bounds of random radius generation for each of the N bodies. The default is (40,150).
+    sigma_z : float, optional
+        A float parameter describing how much variance for a normal distribution used to randomly generate z-coordinates. The default is 3.0.
+    rotations : tuple, optional
+        A length 3 tuple describing the rotations of N bodies about the x, y, and z axes respectively in radians. The default is (0,0,0).
+    show_pos_plot : bool, optional
+        A toggle for if the starting positions of the n-bodies should be displayed as a quick visual check of the particle orientations
 
-x_rotation_matrix = np.array([[1,0,0],
-                              [0,np.cos(theta_x),np.sin(theta_x)],
-                              [0,-np.sin(theta_x),np.cos(theta_x)]])
-
-y_rotation_matrix = np.array([[np.cos(theta_y),0,np.sin(theta_y)],
-                              [0,1,0],
-                              [-np.sin(theta_y),0,np.cos(theta_y)]])
-
-z_rotation_matrix = np.array([[np.cos(theta_z),-np.sin(theta_z),0],
-                              [np.sin(theta_z),np.cos(theta_z),0],
-                              [0,0,1]])
-
-pos = (x_rotation_matrix @ pos.T).T # Apply the x-axis rotations to the particle positions
-pos = (y_rotation_matrix @ pos.T).T # Apply the y-axis rotations to the particle positions
-pos = (z_rotation_matrix @ pos.T).T # Apply the z-axis rotations to the particle positions
+    Returns
+    -------
+    pos : np.array
+        A [N x 3] matrix of position coordinates (x, y, z)
+    vel : np.array
+        A [N x 3] matrix of velocities for each particle (vx, vy, vz)
+    mass : np.array
+        A [N x 1] vector of particle masses
+    """
+    if include_sun==True:
+        assert sun_mass>0 and type(sun_mass)==float, "With include_sun==True, sun_mass must be >0 and a float"
+    assert type(N)==int, "N, the number of particles, must be an int"
+    assert mass_bounds[0]>0 and mass_bounds[1]>mass_bounds[0], "mass_bounds must be positive and sequentially larger"
     
-# Test plot to visualize the initial starting positions
-#fig, ax = plt.subplots(figsize=(8,6)) # Create a plotting space
-#ax = fig.add_subplot(projection='3d') # Create 3d projection sub-axis
-#ax.scatter(pos[:,0],pos[:,1],pos[:,2])
-#ax.set_ylim(-150,150);ax.set_zlim(-150,150);ax.set_xlim(-150,150)
+    mass = np.random.uniform(*mass_bounds,N) # Randomly generate planetary masses uniformly according to the mass bounds
+    assert (mass>0).all(), "mass values < 0 detected"
+    theta = np.random.uniform(0,2*np.pi,N) # Generate random theta values for each particle (polar coordinates)
+    r = np.random.uniform(*radius_bounds,N) # Generate random radius values for each particle (polar coordinates)
+    z_vals = np.random.normal(0,sigma_z,N) # Generate random z-values for the position coords, gives the system some depth
+    x, y = polar_to_xy(r,theta) # Convert from (r,theta) polar coordinates into (x,y) cartesian coordinates
+    pos = np.vstack([x,y,z_vals]).T # Combine to create (x,y,z) initial conditions for each planet
+    # Apply rotational transformations to the starting positions and velocities to give the solar system a tilt
+    assert len(rotations) == 3, "rotations must be a length 3 tuple"
+    theta_x, theta_y, theta_z = rotations # Unpack into the rotations about each axis in radians
+    # Create rotation matricies
+    x_rotation_matrix = np.array([[1,0,0],
+                          [0,np.cos(theta_x),np.sin(theta_x)],
+                          [0,-np.sin(theta_x),np.cos(theta_x)]])
 
-vel_t = np.sqrt(G*sun_mass/r) # Tangential velocity needed for a stable orbit: v = sqrt(GM/r)
-# Swap x and y and flip the sign on y to give us the velocity decomposition perpendicular to the radius to the orgin
-vel = np.vstack([-vel_t*np.sin(theta),vel_t*np.cos(theta),np.random.normal(0,0.2,N)]).T # Convert to (x,y,z) velocity for each particle
+    y_rotation_matrix = np.array([[np.cos(theta_y),0,np.sin(theta_y)],
+                                  [0,1,0],
+                                  [-np.sin(theta_y),0,np.cos(theta_y)]])
+    
+    z_rotation_matrix = np.array([[np.cos(theta_z),-np.sin(theta_z),0],
+                                  [np.sin(theta_z),np.cos(theta_z),0],
+                                  [0,0,1]])
+    
+    # Apply the rotation matrices to the particle positions
+    pos = (z_rotation_matrix @ y_rotation_matrix @ x_rotation_matrix @ pos.T).T 
+    
+    if include_sun==False: # If no sun is in the system, then use the system's center of mass as a replacement
+        sun_mass = mass.sum()
+    
+    vel_t = np.sqrt(G*sun_mass/r) # Tangential velocity needed for a stable orbit: v = sqrt(GM/r), assumes M is very large in comparison
+    # Swap x and y and flip the sign on y to give us the velocity decomposition perpendicular to the radius to the orgin
+    vel = np.vstack([-vel_t*np.sin(theta),vel_t*np.cos(theta),np.random.normal(0,0.2,N)]).T # Convert to (x,y,z) velocity for each particle
+    
+    # Apply the rotation matrices to the particle velocities so that they are moving about the center of mass in the correct directions
+    vel = (z_rotation_matrix @ y_rotation_matrix @ x_rotation_matrix @ vel.T).T 
 
-vel = (x_rotation_matrix @ vel.T).T # Apply the x-axis rotations to the particle velocities
-vel = (y_rotation_matrix @ vel.T).T # Apply the y-axis rotations to the particle velocities
-vel = (z_rotation_matrix @ vel.T).T # Apply the z-axis rotations to the particle velocities
+    if include_sun==True: # Append to mass, pos, vel the values of the Sun in the center of the solar system / galaxy structure
+        mass = np.insert(mass,0,sun_mass).reshape(-1,1) # Add the sun's mass
+        pos = np.insert(pos,np.array([0]),0,axis=0) # Add the sun's starting position in the center at the origin
+        vel = np.insert(vel,np.array([0]),0,axis=0) # Add the sun's starting velocity of zero
+    
+    if show_pos_plot == True: # Plot the initial positions generated for the n-body system for visual inspection
+        fig, ax = plt.subplots(figsize=(8,6)) # Create a plotting space for the inital positions
+        ax = fig.add_subplot(projection='3d') # Create 3d projection sub-axis
+        ax.scatter(pos[:,0],pos[:,1],pos[:,2]) # Plot the positions of all the starting particles in 3d
+        ax_lims = abs(pos).max() # Find the max value of the particle positions so that all particles can be viewed in frame
+        ax.set_ylim(-ax_lims,ax_lims);ax.set_zlim(-ax_lims,ax_lims);ax.set_xlim(-ax_lims,ax_lims) # Set axis limits
+    
+    # Returns initial conditions of the generated a solar system
+    return pos, vel, mass.reshape(-1,1)
 
-# Now append to mass, pos, vel the values of the Sun in the center of the solar system / galaxy structure
-mass = np.insert(mass,0,sun_mass).reshape(-1,1) # Add the sun's mass
-pos = np.insert(pos,np.array([0]),0,axis=0) # Add the sun's starting position in the center at the origin
-vel = np.insert(vel,np.array([0]),0,axis=0) # Add the sun's starting velocity of zero
+# Demo the generate_solar_system() functionality
+pos, vel, mass = generate_solar_system(N=500)
 
-pos_agg, realism_metrics = run_simulation(N=(N+1), T=10, dt=0.05, softening=3, G=1, integrator=verlet_integrator,
+# Run the simulation, compute the position evolution over time of each particle in the system
+pos_agg = run_simulation(N=pos.shape[0], T=10, dt=0.05, softening=3, G=1, integrator=leap_frog_integrator,
+                                          initial_conditions={"mass":mass,"pos":pos.copy(),"vel":vel.copy()}, 
+                                          normalize_momentum=False, use_BH=False, random_state=111, return_realism_metrics=False)
+
+# Generate a video of the simulation using the masses to create different sized particles
+generate_simulation_video(pos_agg, 10, 3, ["red"]+['navy']*(pos.shape[0]-1), show_tails=False, file_type="mp4",
+                          s=[500]+list(mass[1:,].reshape(-1)*(8/mass[1:,].mean())),
+                          tail_len=25, set_lims=(-150,150),output_filename="solar_system_random_seed_with_sun")
+
+
+# Demo the generate_solar_system() functionality with no sun included in the middle
+pos, vel, mass = generate_solar_system(N=50,include_sun=False,mass_bounds=(50,100),radius_bounds=(100,150))
+
+# Run the simulation, compute the position evolution over time of each particle in the system
+pos_agg = run_simulation(N=pos.shape[0], T=30, dt=0.05, softening=3, G=1, integrator=leap_frog_integrator,
+                                          initial_conditions={"mass":mass,"pos":pos.copy(),"vel":vel.copy()}, 
+                                          normalize_momentum=False, use_BH=False, random_state=111, return_realism_metrics=False)
+
+generate_simulation_video(pos_agg, 10, 3, ['navy']*(pos.shape[0]), show_tails=False, file_type="mp4",
+                          s=list(mass.reshape(-1)*(8/mass.mean())),
+                          tail_len=25, set_lims=(-150,150),output_filename="solar_system_random_seed_without_sun")
+
+
+###                               ###
+### Large Solar System Simulation ###
+###                               ###
+N = 700
+pos, vel, mass = generate_solar_system(N=700, G=1, include_sun=True, sun_mass=80000.0,
+                          mass_bounds=(2,10), radius_bounds=(40,150), sigma_z=3.0, rotations=(-np.pi/6,-np.pi/6,0))
+
+pos_agg, realism_metrics = run_simulation(N=(N+1), T=30, dt=0.01, softening=3, G=1, integrator=leap_frog_integrator,
                                           initial_conditions={"mass":mass,"pos":pos.copy(),"vel":vel.copy()}, 
                                           normalize_momentum=True,
                                           use_BH=False, random_state=111, return_realism_metrics=True)
     
 time_axis = np.arange(len(realism_metrics["KE"]))*0.01;plot_simulation_energy(time_axis,realism_metrics["KE"],realism_metrics["PE"])
 
-generate_simulation_video(pos_agg, 10, 3, ["red"]+['navy']*N, show_tails=False, file_type="mp4",
-                          s=[500]+list(mass[1:,].reshape(-1)*(8/mass[1:,].mean())),
-                          tail_len=25, set_lims=(-150,150),output_filename="small_test_3d_no_tails")
-
-
 # Generate 2d and 3d animations
-generate_simulation_video(pos_agg, 50, 2, ["red"]+['blue']*N, show_tails=True, file_type="mp4", s=[500]+[10]*N,
-                          tail_len=25, set_lims=(-200,200),output_filename="large_solar_sys_sim_2d")
+generate_simulation_video(pos_agg, 30, 3, ["red"]+['navy']*N, show_tails=False, file_type="mp4",
+                          s=[500]+list(mass[1:,].reshape(-1)*(8/mass[1:,].mean())),
+                          tail_len=25, set_lims=(-150,150),output_filename="large_solar_sys_sim_3d_no_tails")
 
-generate_simulation_video(pos_agg, 50, 3, ["red"]+['blue']*N, show_tails=True, file_type="mp4", s=[500]+[10]*N,
+generate_simulation_video(pos_agg, 30, 3, ["red"]+['navy']*N, show_tails=True, file_type="mp4",
+                          s=[500]+list(mass[1:,].reshape(-1)*(8/mass[1:,].mean())),
                           tail_len=25, set_lims=(-150,150),output_filename="large_solar_sys_sim_3d")
 
+generate_simulation_video(pos_agg, 30, 2, ["red"]+['navy']*N, show_tails=True, file_type="mp4",
+                          s=[500]+list(mass[1:,].reshape(-1)*(8/mass[1:,].mean())),
+                          tail_len=25, set_lims=(-150,150),output_filename="large_solar_sys_sim_2d")
 
-### 
+
+###                                        ###
+### Large Solar System Run for a Long TIme ###
+###                                        ###
+
+N = 700
+pos, vel, mass = generate_solar_system(N=700, G=1, include_sun=True, sun_mass=80000.0,
+                          mass_bounds=(2,5), radius_bounds=(20,150), sigma_z=3.0, rotations=(-np.pi/6,-np.pi/6,0))
+
+pos_agg = run_simulation(N=(300+1), T=80, dt=0.01, softening=3, G=1, integrator=leap_frog_integrator,
+                                          initial_conditions={"mass":mass,"pos":pos.copy(),"vel":vel.copy()}, 
+                                          normalize_momentum=False,
+                                          use_BH=False, random_state=111, return_realism_metrics=False)
+
+generate_simulation_video(pos_agg, 10, 3, ["red"]+['navy']*N, show_tails=False, file_type="mp4",
+                          s=[500]+list(mass[1:,].reshape(-1)*(8/mass[1:,].mean())),
+                          tail_len=25, set_lims=(-150,150),output_filename="large_solar_sys_sim_fast")
+
+
 
 ###                                   ###
 ### Galaxy Collision Simulation Model ###
 ###                                   ###
 
-G = 1 # Set the gravitational constant for this simulation
+N = 500
 
 ### Galaxy 1 ###
-sun_mass = 10000.0 # Set the mass of the sun for this simulation, should be much greater than the mass of the planets
-N = 500 # The number of planets in the solar system simulation model
-mass_1 = np.random.uniform(2,10,N) # Randomly generate planetary masses
-assert (mass_1>0).all() # Check that all masses have been randomly initialized to positive values
-theta = np.random.uniform(0,2*np.pi,N) # Generate random theta values for each particle (polar coordinates)
-r = np.random.uniform(40,150,N) # Generate random radius values for each particle (polar coordinates)
-z_vals = np.random.normal(0,3,N) # Generate random z-values for the position coords, gives the system some depth
-x, y = polar_to_xy(r,theta) # Convert from (r,theta) polar coordinates into (x,y) cartesian coordinates
-pos_1 = np.vstack([x,y,z_vals]).T # Combine to create (x,y,z) initial conditions for each planet
-
-# Apply rotational transformations to the positions and velocities
-theta_x = 0#np.pi/10 #np.pi/6 # Rotation about the x-axis
-theta_y = 0#np.pi/10 #np.pi/12 # Rotation about the y-axis
-theta_z = 0 # Rotation about the y-axis
-
-x_rotation_matrix = np.array([[1,0,0],
-                              [0,np.cos(theta_x),np.sin(theta_x)],
-                              [0,-np.sin(theta_x),np.cos(theta_x)]])
-
-y_rotation_matrix = np.array([[np.cos(theta_y),0,np.sin(theta_y)],
-                              [0,1,0],
-                              [-np.sin(theta_y),0,np.cos(theta_y)]])
-
-z_rotation_matrix = np.array([[np.cos(theta_z),-np.sin(theta_z),0],
-                              [np.sin(theta_z),np.cos(theta_z),0],
-                              [0,0,1]])
-
-pos_1 = (x_rotation_matrix @ pos_1.T).T # Apply the x-axis rotations to the particle positions
-pos_1 = (y_rotation_matrix @ pos_1.T).T # Apply the y-axis rotations to the particle positions
-pos_1 = (z_rotation_matrix @ pos_1.T).T # Apply the z-axis rotations to the particle positions
-    
-vel_t = np.sqrt(G*sun_mass/r) # Tangential velocity needed for a stable orbit: v = sqrt(GM/r)
-# Swap x and y and flip the sign on y to give us the velocity decomposition perpendicular to the radius to the orgin
-vel_1 = np.vstack([-vel_t*np.sin(theta),vel_t*np.cos(theta),np.random.normal(0,0.2,N)]).T # Convert to (x,y,z) velocity for each particle
-
-vel_1 = (x_rotation_matrix @ vel_1.T).T # Apply the x-axis rotations to the particle velocities
-vel_1 = (y_rotation_matrix @ vel_1.T).T # Apply the y-axis rotations to the particle velocities
-vel_1 = (z_rotation_matrix @ vel_1.T).T # Apply the z-axis rotations to the particle velocities
-
-# Now append to mass, pos, vel the values of the Sun in the center of the solar system / galaxy structure
-mass_1 = np.insert(mass_1,0,sun_mass).reshape(-1,1) # Add the sun's mass
-pos_1 = np.insert(pos_1,np.array([0]),0,axis=0) # Add the sun's starting position in the center at the origin
-vel_1 = np.insert(vel_1,np.array([0]),0,axis=0) # Add the sun's starting velocity of zero
+pos_1, vel_1, mass_1 = generate_solar_system(N=500, G=1, include_sun=True, sun_mass=10000.0,
+                          mass_bounds=(2,10), radius_bounds=(40,150), sigma_z=3.0, rotations=(0,0,0))
 
 # Move the position of everything in Galaxy 1 over to the left and add a net velocity to the right
 pos_1 = pos_1 - np.array([100,100,0])
 vel_1 = vel_1 + np.array([5,10,0])
 
 ### Galaxy 2 ###
-sun_mass = 10000.0 # Set the mass of the sun for this simulation, should be much greater than the mass of the planets
-N = 500 # The number of planets in the solar system simulation model
-mass_2 = np.random.uniform(2,10,N) # Randomly generate planetary masses
-assert (mass_2>0).all() # Check that all masses have been randomly initialized to positive values
-theta = np.random.uniform(0,2*np.pi,N) # Generate random theta values for each particle (polar coordinates)
-r = np.random.uniform(40,150,N) # Generate random radius values for each particle (polar coordinates)
-z_vals = np.random.normal(0,3,N) # Generate random z-values for the position coords, gives the system some depth
-x, y = polar_to_xy(r,theta) # Convert from (r,theta) polar coordinates into (x,y) cartesian coordinates
-pos_2 = np.vstack([x,y,z_vals]).T # Combine to create (x,y,z) initial conditions for each planet
-
-# Apply rotational transformations to the positions and velocities
-theta_x = 0#np.pi/10 #np.pi/6 # Rotation about the x-axis
-theta_y = 0#np.pi/10 #np.pi/12 # Rotation about the y-axis
-theta_z = 0 # Rotation about the y-axis
-
-x_rotation_matrix = np.array([[1,0,0],
-                              [0,np.cos(theta_x),np.sin(theta_x)],
-                              [0,-np.sin(theta_x),np.cos(theta_x)]])
-
-y_rotation_matrix = np.array([[np.cos(theta_y),0,np.sin(theta_y)],
-                              [0,1,0],
-                              [-np.sin(theta_y),0,np.cos(theta_y)]])
-
-z_rotation_matrix = np.array([[np.cos(theta_z),-np.sin(theta_z),0],
-                              [np.sin(theta_z),np.cos(theta_z),0],
-                              [0,0,1]])
-
-pos_2 = (x_rotation_matrix @ pos_2.T).T # Apply the x-axis rotations to the particle positions
-pos_2 = (y_rotation_matrix @ pos_2.T).T # Apply the y-axis rotations to the particle positions
-pos_2 = (z_rotation_matrix @ pos_2.T).T # Apply the z-axis rotations to the particle positions
-    
-vel_t = np.sqrt(G*sun_mass/r) # Tangential velocity needed for a stable orbit: v = sqrt(GM/r)
-# Swap x and y and flip the sign on y to give us the velocity decomposition perpendicular to the radius to the orgin
-vel_2 = np.vstack([-vel_t*np.sin(theta),vel_t*np.cos(theta),np.random.normal(0,0.2,N)]).T # Convert to (x,y,z) velocity for each particle
-
-vel_2 = (x_rotation_matrix @ vel_2.T).T # Apply the x-axis rotations to the particle velocities
-vel_2 = (y_rotation_matrix @ vel_2.T).T # Apply the y-axis rotations to the particle velocities
-vel_2 = (z_rotation_matrix @ vel_2.T).T # Apply the z-axis rotations to the particle velocities
-
-# Now append to mass, pos, vel the values of the Sun in the center of the solar system / galaxy structure
-mass_2 = np.insert(mass_2,0,sun_mass).reshape(-1,1) # Add the sun's mass
-pos_2 = np.insert(pos_2,np.array([0]),0,axis=0) # Add the sun's starting position in the center at the origin
-vel_2 = np.insert(vel_2,np.array([0]),0,axis=0) # Add the sun's starting velocity of zero
+pos_2, vel_2, mass_2 = generate_solar_system(N=500, G=1, include_sun=True, sun_mass=10000.0,
+                          mass_bounds=(2,10), radius_bounds=(40,150), sigma_z=3.0, rotations=(0,0,0))
 
 # Move the position of everything in Galaxy 2 over to the right and add a net velocity to the left
 pos_2 = pos_2 + np.array([100,100,0])
@@ -339,24 +354,13 @@ vel_2 = vel_2 - np.array([5,10,0])
 # Concatenate together the starting positions, starting velocities and masses of each particle
 pos = np.concatenate([pos_1,pos_2]);vel = np.concatenate([vel_1,vel_2]);mass = np.concatenate([mass_1,mass_2])
 
-# Test plot initial starting positions
-fig, ax = plt.subplots(figsize=(8,6)) # Create a plotting space
-ax = fig.add_subplot(projection='3d') # Create 3d projection sub-axis
-ax.scatter(pos[:,0],pos[:,1],pos[:,2])
-ax.set_ylim(-300,300);ax.set_zlim(-300,300);ax.set_xlim(-300,300)
 
 # Run the simulation, compute the position evolution of both galaxy clusters over time
-pos_agg = run_simulation(N=(N+1), T=80, dt=0.05, softening=3, G=1, integrator=verlet_integrator,
+pos_agg = run_simulation(N=(N+1), T=20, dt=0.01, softening=3, G=1, integrator=leap_frog_integrator,
                                           initial_conditions={"mass":mass,"pos":pos.copy(),"vel":vel.copy()}, 
                                           normalize_momentum=False, use_BH=False, random_state=111, return_realism_metrics=False)
     
-#time_axis = np.arange(len(realism_metrics["KE"]))*0.01;plot_simulation_energy(time_axis,realism_metrics["KE"],realism_metrics["PE"])
-
-generate_simulation_video(pos_agg, 40, 3, ["red"]+['navy']*N+["darkorange"]+['green']*N, show_tails=False, file_type="mp4",
+generate_simulation_video(pos_agg, 20, 3, ["red"]+['navy']*N+["darkorange"]+['green']*N, show_tails=False, file_type="mp4",
                           s=[500]+list(mass_1[1:,].reshape(-1)*(8/mass_1[1:,].mean()))+[500]+list(mass_2[1:,].reshape(-1)*(8/mass_2[1:,].mean())),
-                          tail_len=25, set_lims=(-350,350),output_filename="galaxy_collision_test_3d_large_dims")
-
-
-
-# Write a function to gnerate a solar system / galaxy, should take in initial conditions parameters and return a pos, vel, mass tuple
+                          tail_len=25, set_lims=(-200,200),output_filename="galaxy_collision_test_3d_large_dims")
 
